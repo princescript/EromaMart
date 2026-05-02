@@ -58,7 +58,16 @@ Category (1) ──── (N) Product
 Brand    (1) ──── (N) Product
 HSN      (1) ──── (N) Product
 
+Master Data (Independent)
+	Category
+	Brand
 
+Domain Core (Aggregate)
+	Product
+
+Child Entities
+	ProductImages
+	Inventory
 
 
 ### Goal: Build product catalog

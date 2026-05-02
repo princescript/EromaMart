@@ -18,20 +18,5 @@
         public int? modify_by { get; set; }
         public string? ip_address { get; set; }
 
-        public void UpdatePrice(decimal newPrice)
-        {
-            if (newPrice <= 0)
-                throw new Exception("Price must be greater than zero");
-
-            price = newPrice;
-            modify_date = DateTime.UtcNow;
-        }
-        public decimal GetFinalPrice()
-        {
-            if (discount_percent is null || discount_percent <= 0)
-                return price;
-
-            return price - (price * discount_percent.Value / 100);
-        }
     }
 }

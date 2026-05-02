@@ -59,7 +59,7 @@ public class ProductService : IProductService
         existing.product_description = updatedProduct.product_description;
         existing.brand_id = updatedProduct.brand_id;
         existing.category_id = updatedProduct.category_id;
-        existing.UpdatePrice(updatedProduct.price);
+        existing.price = updatedProduct.price;
         existing.sku = updatedProduct.sku;
         await _repo.UpdateAsync(existing);
     }

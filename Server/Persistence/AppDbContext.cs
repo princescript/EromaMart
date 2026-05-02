@@ -10,7 +10,9 @@ namespace Server.Persistence
         public DbSet<UserMaster> DbUserMaster { get; set; }
         public DbSet<ProductMaster> DbProductMaster { get; set; }
         public DbSet<CategoryMaster> DbCategorieMaster { get; set; }
-
+        public DbSet<BrandMaster> DbBrandMaster { get; set; }
+        public DbSet<ProductImageTran> DbProductImageTran { get; set; }
+        public DbSet<InventoryMaster> DbInventoryMaster { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -43,6 +45,30 @@ namespace Server.Persistence
                 entity.HasKey(x => x.category_id);
                 entity.Property(x => x.category_id)
                       .HasColumnName("category_id")
+                      .ValueGeneratedOnAdd();
+            });
+            modelBuilder.Entity<BrandMaster>(entity =>
+            {
+                entity.ToTable("mst_brand");
+                entity.HasKey(x => x.brand_id);
+                entity.Property(x => x.brand_id)
+                      .HasColumnName("brand_id")
+                      .ValueGeneratedOnAdd();
+            });
+            modelBuilder.Entity<ProductImageTran>(entity =>
+            {
+                entity.ToTable("tran_product_image");
+                entity.HasKey(x => x.image_id);
+                entity.Property(x => x.image_id)
+                      .HasColumnName("image_id")
+                      .ValueGeneratedOnAdd();
+            });
+            modelBuilder.Entity<InventoryMaster>(entity =>
+            {
+                entity.ToTable("mst_inventory");
+                entity.HasKey(x => x.inventory_id);
+                entity.Property(x => x.inventory_id)
+                      .HasColumnName("inventory_id")
                       .ValueGeneratedOnAdd();
             });
         }
