@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Server.DTOs.Common;
+using Server.DTOs.Image;
 using Server.Services;
 
 namespace Server.Controllers
@@ -9,18 +10,16 @@ namespace Server.Controllers
     public class ImageController : ControllerBase
     {
         private readonly IProductImageService _service;
-        private readonly ICloudinaryService _cloudinary;
 
-        public ImageController(IProductImageService service, ICloudinaryService cloudinary)
+        public ImageController(IProductImageService service)
         {
             _service = service;
-            _cloudinary = cloudinary;
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> Upload(List<IFormFile> files)
+        public async Task<IActionResult> Upload([FromForm] UploadRequest request)
         {
-            if (files == null || files.Count == 0)
+            if (request.Files == null || request.Files.Count == 0)
             {
                 return BadRequest(new ApiResponse
                 {
@@ -31,40 +30,28 @@ namespace Server.Controllers
                 });
             }
 
-            try
-            {
-                var urls = await _cloudinary.UploadMultipleAsync(files);
+            var res = await _service.UploadImageAsync(request);
 
-                if (urls == null || urls.Count == 0)
-                {
-                    return BadRequest(new ApiResponse
-                    {
-                        Code = 400,
-                        Success = false,
-                        Message = "Upload failed",
-                        Data = null
-                    });
-                }
-
-                return Ok(new ApiResponse
-                {
-                    Code = 200,
-                    Success = true,
-                    Message = "Images uploaded successfully",
-                    Data = urls
-                });
-            }
-            catch (Exception ex)
+            if (!res.Success)
             {
                 return StatusCode(500, new ApiResponse
                 {
                     Code = 500,
                     Success = false,
-                    Message = "Server error during upload",
-                    Data = ex.Message
+                    Message = res.Message,
+                    Data = null
                 });
             }
+
+            return Ok(new ApiResponse
+            {
+                Code = 200,
+                Success = true,
+                Message = "Upload successful",
+                Data = null
+            });
         }
+
         [HttpGet("product/{productId}/images")]
         public async Task<IActionResult> GetByProductId(int productId)
         {

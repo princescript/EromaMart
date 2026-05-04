@@ -6,6 +6,8 @@ namespace Server.Repositories;
 
 public interface IProductImageRepository
 {
+    Task<bool> AddAsync(List<ProductImageTran> list);
+
     Task<List<ProductImageTran>> FindAsync(Expression<Func<ProductImageTran, bool>> predicate);
     Task<ProductImageTran?> GetByIdAsync(int imageId);
     Task DeleteAllAsync(List<ProductImageTran> images);
@@ -21,6 +23,14 @@ public class ProductImageRepository : IProductImageRepository
         _context = context;
     }
 
+    public async Task<bool> AddAsync(List<ProductImageTran> list)
+    {
+        await _context.DbProductImageTran.AddRangeAsync(list);
+
+        var result = await _context.SaveChangesAsync();
+
+        return result > 0;
+    }
     public async Task<List<ProductImageTran>> FindAsync(Expression<Func<ProductImageTran, bool>> predicate)
     {
         return await _context.DbProductImageTran
