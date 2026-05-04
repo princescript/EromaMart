@@ -50,13 +50,18 @@ Controller ? Service ? Repository ? Database
 
 ## relationships 
 
-Product  (1) ──── (1) Inventory
-Product  (1) ──── (N) Images
-Product  (N) ──── (N) Tags
-
+Product (1) ──── (N) Images
 Category (1) ──── (N) Product
 Brand    (1) ──── (N) Product
+
 HSN      (1) ──── (N) Product
+Product  (N) ──── (N) Tags
+Product (1) ──── (N) Reviews
+
+Product (N) ──── (N) Warehouse
+           ↓
+        Inventory
+
 
 Master Data (Independent)
 	Category
@@ -246,3 +251,406 @@ Products ? Cart ? Orders ? Payment
 - Avoid mixing responsibilities
 - Design APIs for scaling from day one
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---
+
+# 🧠 Product + Inventory Design Notes (Backend)
+
+---
+
+# 1. Core Idea
+
+```plaintext
+Product = what you sell
+Inventory = how much you have
+```
+
+👉 They are **related but separate domains**
+
+---
+
+# 2. Phase 1 Goal (Current Stage)
+
+Build:
+
+```plaintext
+Product Module (core)
++ Basic Inventory (simple)
+```
+
+---
+
+# 3. Database Design
+
+## Product Relationships
+
+```plaintext
+Product (1) ──── (N) Images
+Category (1) ──── (N) Product
+Brand    (1) ──── (N) Product
+HSN      (1) ──── (N) Product
+Product  (N) ──── (N) Tags
+Product  (1) ──── (N) Reviews
+```
+
+---
+
+## Inventory (Current Phase)
+
+```plaintext
+Product (1) ──── (1) Inventory
+```
+
+Table:
+
+```plaintext
+mst_inventory
+ ├── product_id (UNIQUE)
+ ├── quantity
+ ├── is_active
+ ├── audit fields
+```
+
+---
+
+## Inventory (Future)
+
+```plaintext
+Product (N) ──── (N) Warehouse
+           ↓
+        Inventory
+```
+
+---
+
+# 4. API Design
+
+## Product API
+
+```plaintext
+POST /products
+```
+
+✔ Creates product
+✔ System auto-creates inventory
+
+---
+
+## Inventory APIs
+
+```plaintext
+POST /inventory/stock-in
+POST /inventory/stock-out
+GET  /inventory/{productId}
+```
+
+---
+
+## ❌ Do NOT create
+
+```plaintext
+POST /inventory/create   ❌
+```
+
+---
+
+# 5. Internal Service Design
+
+## Product Service
+
+```plaintext
+CreateProduct()
+   ↓
+Save Product
+   ↓
+Call InventoryService.CreateInventory()
+```
+
+---
+
+## Inventory Service
+
+```plaintext
+CreateInventory(productId)   ← internal only
+
+StockIn(productId, qty)
+StockOut(productId, qty)
+```
+
+---
+
+# 6. Flow
+
+## Product Creation
+
+```plaintext
+Admin → Create Product
+        ↓
+System → Save Product
+        ↓
+System → Create Inventory (qty = 0)
+```
+
+---
+
+## Stock Flow
+
+```plaintext
+Add Stock:
+Admin → StockIn → quantity +
+
+Reduce Stock:
+Admin → StockOut → quantity -
+```
+
+---
+
+# 7. Rules (Important)
+
+### ✔ Must follow
+
+* Inventory is **auto-created**
+* Inventory is **separate table**
+* Stock is updated via **operations**, not direct edit
+
+---
+
+### ❌ Avoid
+
+* Creating inventory manually via API
+* Storing quantity inside product
+* Direct DB updates without logic
+
+---
+
+# 8. Design Principles
+
+### 1. Separation of concerns
+
+```plaintext
+Product ≠ Inventory
+```
+
+---
+
+### 2. System vs Admin responsibility
+
+```plaintext
+System:
+- Create inventory
+
+Admin:
+- Add stock
+- Reduce stock
+```
+
+---
+
+### 3. Behavior over CRUD
+
+Instead of:
+
+```plaintext
+UpdateInventory ❌
+```
+
+Use:
+
+```plaintext
+StockIn ✔
+StockOut ✔
+```
+
+---
+
+# 9. Future Upgrade Path
+
+Later you will add:
+
+### Inventory upgrade
+
+```plaintext
+reserved_quantity
+available_quantity
+```
+
+---
+
+### Warehouse support
+
+```plaintext
+product_id + warehouse_id
+```
+
+---
+
+### Advanced operations
+
+```plaintext
+Reserve
+Confirm
+Release
+```
+
+---
+
+### Audit system
+
+```plaintext
+tran_inventory (history table)
+```
+
+---
+
+# 10. Final Architecture (Simple)
+
+```plaintext
+Controller
+   ↓
+Service
+   ↓
+Repository
+   ↓
+Database
+```
+
+---
+
+# 11. Key Takeaways
+
+* ✔ Inventory is **system-managed**
+* ✔ No separate create-inventory API
+* ✔ Stock handled via **StockIn / StockOut**
+* ✔ Start simple, design for future
+* ✔ You are building **Phase 1 system correctly**
+
+---
+
+# 🔚 Final Summary (one line)
+
+👉 **Product is created by admin, Inventory is created by system, Stock is controlled by operations.**
+
+---
+
+
+
+
+
+
+
+
+
+
+#region
+//namespace Server.Services;
+
+//public interface ICloudinaryService
+//{
+//    Task<List<string>> UploadMultipleAsync(List<IFormFile> files);
+//}
+
+//public class CloudinaryService : ICloudinaryService
+//{
+//    private readonly HttpClient _http;
+//    private readonly IConfiguration _config;
+
+//    public CloudinaryService(HttpClient http, IConfiguration config)
+//    {
+//        _http = http;
+//        _config = config;
+//    }
+
+//    public async Task<List<string>> UploadMultipleAsync(List<IFormFile> files)
+//    {
+//        if (files == null || files.Count == 0)
+//            throw new ArgumentException("No files provided");
+
+//        var cloudName = _config["Cloudinary:CloudName"];
+//        var uploadPreset = _config["Cloudinary:UploadPreset"];
+
+//        if (string.IsNullOrWhiteSpace(cloudName))
+//            throw new Exception("Cloudinary CloudName is missing");
+
+//        if (string.IsNullOrWhiteSpace(uploadPreset))
+//            throw new Exception("Cloudinary UploadPreset is missing");
+
+//        var url = $"https://api.cloudinary.com/v1_1/{cloudName}/image/upload";
+
+//        var resultList = new List<string>();
+
+//        foreach (var file in files)
+//        {
+//            if (file == null || file.Length == 0)
+//                continue;
+
+//            using var form = new MultipartFormDataContent();
+
+//            // ✅ preset (must be first for Cloudinary unsigned upload)
+//            var presetContent = new StringContent(uploadPreset);
+//            presetContent.Headers.ContentDisposition =
+//                new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data")
+//                {
+//                    Name = "\"upload_preset\""
+//                };
+//            form.Add(presetContent);
+
+//            // ✅ file
+//            await using var stream = file.OpenReadStream();
+//            var fileContent = new StreamContent(stream);
+
+//            fileContent.Headers.ContentType =
+//                new System.Net.Http.Headers.MediaTypeHeaderValue(
+//                    file.ContentType ?? "application/octet-stream"
+//                );
+
+//            fileContent.Headers.ContentDisposition =
+//                new System.Net.Http.Headers.ContentDispositionHeaderValue("form-data")
+//                {
+//                    Name = "\"file\"",
+//                    FileName = $"\"{file.FileName}\""
+//                };
+
+//            form.Add(fileContent);
+
+//            // request
+//            var response = await _http.PostAsync(url, form);
+//            var result = await response.Content.ReadAsStringAsync();
+
+//            if (!response.IsSuccessStatusCode)
+//                throw new Exception($"Cloudinary upload failed: {result}");
+
+//            using var json = System.Text.Json.JsonDocument.Parse(result);
+
+//            if (json.RootElement.TryGetProperty("secure_url", out var urlElement))
+//            {
+//                var secureUrl = urlElement.GetString();
+//                if (!string.IsNullOrWhiteSpace(secureUrl))
+//                    resultList.Add(secureUrl);
+//            }
+//        }
+
+//        return resultList;
+//    }
+//}
+
+#endregion
