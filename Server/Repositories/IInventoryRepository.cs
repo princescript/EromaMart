@@ -7,7 +7,7 @@ namespace Server.Repositories;
 public interface IInventoryRepository
 {
     Task<InventoryMaster?> GetInventoryByProductId(int productId);
-    Task CreateInventory(InventoryMaster entity);
+    Task<InventoryMaster> CreateInventory(InventoryMaster entity);
     Task UpdateInventory(InventoryMaster entity);
 }
 public class InventoryRepository : IInventoryRepository
@@ -22,10 +22,11 @@ public class InventoryRepository : IInventoryRepository
             .FirstOrDefaultAsync(x => x.product_id == productId);
     }
 
-    public async Task CreateInventory(InventoryMaster entity)
+    public async Task<InventoryMaster> CreateInventory(InventoryMaster entity)
     {
         await _context.DbInventoryMaster.AddAsync(entity);
         await _context.SaveChangesAsync();
+        return entity;
     }
     public async Task UpdateInventory(InventoryMaster entity)
     {

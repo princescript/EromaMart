@@ -1,21 +1,31 @@
-﻿using Server.Entities;
+﻿using Server.DTOs.Image;
+using Server.Entities;
+using Server.Persistence;
 using Server.Repositories;
+using Server.Services;
 using System.Linq.Expressions;
 
 public interface IProductService
 {
     Task<IEnumerable<ProductMaster>> FindAsync(Expression<Func<ProductMaster, bool>> predicate);
-    Task AddAsync(ProductMaster product);
+    Task<long?> AddAsync(ProductCreateRequest request);
     Task UpdateAsync(string sku, ProductMaster product);
     Task DeleteAsync(string sku);
 }
 public class ProductService : IProductService
 {
     private readonly IProductRepository _repo;
-
-    public ProductService(IProductRepository repo)
+    private readonly IInventoryRepository _inventoryRepo;
+    private readonly AppDbContext _context;
+    private readonly ICloudinaryService _cloudinary;
+    private readonly IProductImageRepository _imageRepo;
+    public ProductService(IProductRepository repo,IInventoryRepository inventoryRepo,AppDbContext context, ICloudinaryService service, IProductImageRepository imageRepo)
     {
         _repo = repo;
+        _inventoryRepo = inventoryRepo;
+        _context = context;
+        _cloudinary = service;
+        _imageRepo = imageRepo;
     }
 
     public async Task<IEnumerable<ProductMaster>> FindAsync(Expression<Func<ProductMaster, bool>> predicate)
@@ -23,28 +33,87 @@ public class ProductService : IProductService
         return await _repo.FindAsync(predicate);
     }
 
-
-    public async Task AddAsync(ProductMaster product)
+    public async Task<long?> AddAsync(ProductCreateRequest request)
     {
-
-        if (string.IsNullOrWhiteSpace(product.product_name))
+        if (string.IsNullOrWhiteSpace(request.product_name))
             throw new Exception("Product name is required");
 
-        if (product.price <= 0)
+        if (request.price <= 0)
             throw new Exception("Price must be greater than zero");
 
-        product.is_active = true;
-        product.create_date = DateTime.Now;
-        product.create_by = 1;
-        product.sku = GenerateSku(product.product_name);
+        var sku = GenerateSku(request.product_name);
 
-        var exists = (await _repo.FindAsync(x => x.sku == product.sku)).Any();
+        var exists = (await _repo.FindAsync(x => x.sku == sku)).Any();
         if (exists)
             throw new Exception("SKU already exists");
 
-        await _repo.AddAsync(product);
-    }
+        // 1. Upload images first
+        var uploadedImages = await _cloudinary.UploadMultipleAsync(request.Files);
 
+        if (uploadedImages == null || uploadedImages.Count == 0)
+            throw new Exception("Image upload failed");
+
+        using var transaction = await _context.Database.BeginTransactionAsync();
+
+        try
+        {
+            // 2. Create product
+            var product = await _repo.AddAsync(new ProductMaster
+            {
+                product_name = request.product_name,
+                product_description = request.product_description,
+                sku = sku,
+                price = request.price,
+                discount_percent = request.discount_percent,
+                category_id = request.category_id,
+                brand_id = request.brand_id,
+                is_active = true,
+                create_date = DateTime.UtcNow,
+                create_by = 1
+            });
+
+            // 3. Create inventory
+            await _inventoryRepo.CreateInventory(new InventoryMaster
+            {
+                product_id = product.product_id,
+                quantity = 0,
+                warehouse_id = 1,
+                is_active = true,
+                create_date = DateTime.UtcNow,
+                create_by = 1
+            });
+
+            // 4. Save images
+            var imageEntities = uploadedImages.Select((x, index) => new ProductImageTran
+            {
+                product_id = product.product_id,
+                image_url = x.Url,
+                public_id = x.PublicId,
+                is_default  = false,        
+                display_order = index,      
+                is_active = true,
+                create_date = DateTime.UtcNow,
+                create_by = 1
+            }).ToList();
+
+            await _imageRepo.AddAsync(imageEntities);
+
+            await transaction.CommitAsync();
+
+            return product.product_id;
+        }
+        catch
+        {
+            await transaction.RollbackAsync();
+
+            foreach (var img in uploadedImages)
+            {
+                await _cloudinary.DeleteAsync(img.PublicId);
+            }
+
+            throw;
+        }
+    }
     public async Task UpdateAsync(string sku, ProductMaster updatedProduct)
     {
         var existing = (await _repo.FindAsync(x => x.sku == sku)).FirstOrDefault();

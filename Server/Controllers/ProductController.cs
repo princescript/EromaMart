@@ -56,16 +56,30 @@ namespace Server.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(ProductMaster product)
+        public async Task<IActionResult> Create([FromForm] ProductCreateRequest request)
         {
-            await _service.AddAsync(product);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            var result = await _service.AddAsync(request);
+
+            if (result <= 0 || result == null)
+            {
+                return BadRequest(new ApiResponse
+                {
+                    Code = 400,
+                    Success = false,
+                    Message = "Product creation failed",
+                    Data = null
+                });
+            }
 
             return StatusCode(201, new ApiResponse
             {
                 Code = 201,
                 Success = true,
-                Message = "Product created successfully.",
-                Data = product
+                Message = "Product created successfully",
+                Data = result
             });
         }
 

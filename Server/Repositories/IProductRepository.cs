@@ -8,7 +8,7 @@ namespace Server.Repositories;
 public interface IProductRepository
 {
     Task<IEnumerable<ProductMaster>> FindAsync(Expression<Func<ProductMaster, bool>> predicate);
-    Task AddAsync(ProductMaster product);
+    Task<ProductMaster> AddAsync(ProductMaster product);
     Task UpdateAsync(ProductMaster product);
     Task DeleteAsync(ProductMaster product);
 }
@@ -31,11 +31,11 @@ public class ProductRepository : IProductRepository
             .ToListAsync();
     }
 
-    public async Task AddAsync(ProductMaster product)
+    public async Task<ProductMaster> AddAsync(ProductMaster product)
     {
-        await _context.DbProductMaster.AddAsync(product);
+        var res = await _context.DbProductMaster.AddAsync(product);
         await _context.SaveChangesAsync();
-
+        return product;
     }
 
     public async Task UpdateAsync(ProductMaster product)
