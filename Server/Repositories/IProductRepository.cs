@@ -7,6 +7,10 @@ namespace Server.Repositories;
 
 public interface IProductRepository
 {
+    Task<IEnumerable<ProductMaster>> FindPagedAsync(
+        Expression<Func<ProductMaster, bool>> predicate,
+        int page,
+        int pageSize);
     Task<IEnumerable<ProductMaster>> FindAsync(Expression<Func<ProductMaster, bool>> predicate);
     Task<ProductMaster> AddAsync(ProductMaster product);
     Task UpdateAsync(ProductMaster product);
@@ -16,12 +20,25 @@ public interface IProductRepository
 public class ProductRepository : IProductRepository
 {
     private readonly AppDbContext _context;
-
     public ProductRepository(AppDbContext context)
     {
         _context = context;
     }
 
+    public async Task<IEnumerable<ProductMaster>> FindPagedAsync(
+       Expression<Func<ProductMaster, bool>> predicate,
+       int page,
+       int pageSize)
+    {
+        return await _context.DbProductMaster
+            .Where(x => x.is_active)
+            .Where(predicate)
+            .AsNoTracking()
+            .OrderByDescending(x => x.product_id)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+    }
     public async Task<IEnumerable<ProductMaster>> FindAsync(Expression<Func<ProductMaster, bool>> predicate)
     {
         return await _context.DbProductMaster

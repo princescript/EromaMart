@@ -3,11 +3,23 @@ using Server.Helpers;
 using Server.Persistence;
 using Server.Repositories;
 using Server.Services;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddDbContext<AppDbContext>(x => x.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+{
+    var str = builder.Configuration.GetConnectionString("Redis");
+    return ConnectionMultiplexer.Connect(str!);
+
+});
+
+builder.Services.AddHttpContextAccessor();
+
+builder.Services.AddScoped<IRedisKeyHelper, RedisKeyHelper>();
 
 builder.Services.AddScoped<IJwtHelper, JwtHelper>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -16,6 +28,7 @@ builder.Services.AddHttpClient<ICloudinaryService, CloudinaryService>();
 
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<IRedisService, RedisService>();
 
 builder.Services.AddScoped<ICategoryService, CategoryService>();
 builder.Services.AddScoped<ICategoryRepository, CategoryRepository>();

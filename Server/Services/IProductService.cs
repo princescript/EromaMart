@@ -7,6 +7,10 @@ using System.Linq.Expressions;
 
 public interface IProductService
 {
+    Task<IEnumerable<ProductMaster>> FindPagedAsync(
+      Expression<Func<ProductMaster, bool>> predicate,
+      int page,
+      int pageSize);
     Task<IEnumerable<ProductMaster>> FindAsync(Expression<Func<ProductMaster, bool>> predicate);
     Task<long?> AddAsync(ProductCreateRequest request);
     Task UpdateAsync(string sku, ProductMaster product);
@@ -28,6 +32,16 @@ public class ProductService : IProductService
         _imageRepo = imageRepo;
     }
 
+    public async Task<IEnumerable<ProductMaster>> FindPagedAsync(
+     Expression<Func<ProductMaster, bool>> predicate,
+     int page,
+     int pageSize)
+    {
+        return await _repo.FindPagedAsync(
+            predicate,
+            page,
+            pageSize);
+    }
     public async Task<IEnumerable<ProductMaster>> FindAsync(Expression<Func<ProductMaster, bool>> predicate)
     {
         return await _repo.FindAsync(predicate);
